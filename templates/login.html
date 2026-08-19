@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="theme-color" content="#0a0c0b">
+    <link rel="manifest" href="{{ url_for('manifest') }}">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>GreenHouse</title>
+    <link rel="icon" type="image/svg+xml" href="{{ static_url('favicon.svg') }}">
+    <link rel="alternate icon" href="{{ static_url('favicon.ico') }}">
+    <link rel="apple-touch-icon" href="{{ static_url('favicon.png') }}">
+    <link rel="stylesheet" href="{{ static_url('core.css') }}">
+    <link rel="stylesheet" href="{{ static_url('auth.css') }}">
+</head>
+<body class="auth-body">
+    <div class="auth-card panel">
+        <div class="auth-mark">
+            <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 21c-4-2-7-6-7-11a7 7 0 0 1 14 0c0 5-3 9-7 11Z"/>
+                <path d="M12 21v-7"/>
+            </svg>
+        </div>
+        <h1>Green House</h1>
+        <p class="auth-subtitle">Entre para acompanhar sua estufa em tempo real</p>
+
+        {% if erro %}
+        <div class="auth-error">{{ erro }}</div>
+        {% endif %}
+
+        <form method="POST" action="{{ url_for('login') }}">
+            <div class="field">
+                <label for="username">Usuário</label>
+                <input type="text" id="username" name="username" autocomplete="username" required>
+            </div>
+            <div class="field">
+                <label for="password">Senha</label>
+                <input type="password" id="password" name="password" autocomplete="current-password" required>
+            </div>
+            <button type="submit" class="btn auth-submit">Entrar</button>
+        </form>
+    </div>
+
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js').catch(() => {});
+        }
+    </script>
+</body>
+</html>

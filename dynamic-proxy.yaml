@@ -1,0 +1,31 @@
+# Gerado a partir de server-app-base/dynamic-proxy.empty.yaml
+# Referência: server-app-base/INSTRUCOES-PARA-IA.md
+
+http:
+  routers:
+    greenhouse:
+      rule: 'Host(`greenhouse.gvtserver.online`) || Host(`www.greenhouse.gvtserver.online`)'
+      entryPoints:
+        - https
+      service: greenhouse-svc
+      middlewares:
+        - greenhouse-sec
+      tls: {}
+  middlewares:
+    greenhouse-sec:
+      headers:
+        forceSTSHeader: true
+        stsSeconds: 31536000
+        stsIncludeSubdomains: true
+        stsPreload: true
+        contentTypeNosniff: true
+        referrerPolicy: strict-origin-when-cross-origin
+        customResponseHeaders:
+          X-Frame-Options: DENY
+          Cross-Origin-Resource-Policy: same-site
+          Permissions-Policy: 'camera=(), microphone=(), geolocation=()'
+  services:
+    greenhouse-svc:
+      loadBalancer:
+        servers:
+          - url: 'http://greenhouse:4022'

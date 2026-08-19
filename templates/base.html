@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="theme-color" content="#0a0c0b">
+    <link rel="manifest" href="{{ url_for('manifest') }}">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+    <title>{% block title %}GreenHouse{% endblock %}</title>
+    <link rel="icon" type="image/svg+xml" href="{{ static_url('favicon.svg') }}">
+    <link rel="alternate icon" href="{{ static_url('favicon.ico') }}">
+    <link rel="apple-touch-icon" href="{{ static_url('favicon.png') }}">
+    <link rel="stylesheet" href="{{ static_url('core.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/socket.io/client-dist/socket.io.min.js"></script>
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <div class="app-shell">
+        <aside class="sidebar">
+            <div class="sidebar-brand">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 21c-4-2-7-6-7-11a7 7 0 0 1 14 0c0 5-3 9-7 11Z"/>
+                    <path d="M12 21v-7"/>
+                </svg>
+                <span>Green House</span>
+            </div>
+
+            <nav class="sidebar-nav">
+                <a href="/" class="sidebar-link {{ 'active' if active_page == 'painel' else '' }}">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="3" width="7" height="7" rx="1.5"/>
+                        <rect x="14" y="3" width="7" height="7" rx="1.5"/>
+                        <rect x="3" y="14" width="7" height="7" rx="1.5"/>
+                        <rect x="14" y="14" width="7" height="7" rx="1.5"/>
+                    </svg>
+                    <span>Painel</span>
+                </a>
+                <a href="/historico" class="sidebar-link {{ 'active' if active_page == 'historico' else '' }}">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="9"/>
+                        <path d="M12 7v5l3 3"/>
+                    </svg>
+                    <span>Histórico</span>
+                </a>
+                <a href="/relatorios" class="sidebar-link {{ 'active' if active_page == 'relatorios' else '' }}">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M4 20V10"/>
+                        <path d="M12 20V4"/>
+                        <path d="M20 20v-7"/>
+                    </svg>
+                    <span>Relatórios</span>
+                </a>
+                <a href="/configuracoes" class="sidebar-link {{ 'active' if active_page == 'configuracoes' else '' }}">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="3"/>
+                        <path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/>
+                    </svg>
+                    <span>Ajustes</span>
+                </a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <span class="status-pill pending" id="status-badge"><span class="status-dot"></span><span id="status-text">Conectando...</span></span>
+                <a href="{{ url_for('logout') }}" class="logout-link">Sair</a>
+            </div>
+        </aside>
+
+        <nav class="bottom-nav">
+            <a href="/" class="bottom-nav-item {{ 'active' if active_page == 'painel' else '' }}">
+                <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="3" width="7" height="7" rx="1.5"/>
+                    <rect x="14" y="3" width="7" height="7" rx="1.5"/>
+                    <rect x="3" y="14" width="7" height="7" rx="1.5"/>
+                    <rect x="14" y="14" width="7" height="7" rx="1.5"/>
+                </svg>
+                <span>Painel</span>
+            </a>
+            <a href="/historico" class="bottom-nav-item {{ 'active' if active_page == 'historico' else '' }}">
+                <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="9"/>
+                    <path d="M12 7v5l3 3"/>
+                </svg>
+                <span>Histórico</span>
+            </a>
+            <a href="/relatorios" class="bottom-nav-item {{ 'active' if active_page == 'relatorios' else '' }}">
+                <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M4 20V10"/>
+                    <path d="M12 20V4"/>
+                    <path d="M20 20v-7"/>
+                </svg>
+                <span>Relatórios</span>
+            </a>
+            <a href="/configuracoes" class="bottom-nav-item {{ 'active' if active_page == 'configuracoes' else '' }}">
+                <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="3"/>
+                    <path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/>
+                </svg>
+                <span>Ajustes</span>
+            </a>
+        </nav>
+
+        {% set titulos_pagina = {'painel': 'Painel', 'historico': 'Histórico', 'relatorios': 'Relatórios', 'configuracoes': 'Ajustes'} %}
+        <div class="content-area">
+            <main class="page">
+                <h1 class="page-title">{{ titulos_pagina.get(active_page, '') }}</h1>
+                {% block content %}{% endblock %}
+            </main>
+
+            <footer class="site-footer">
+                <p>Green House &copy; 2026</p>
+            </footer>
+        </div>
+    </div>
+
+    <script>
+        // Só polling: atrás do proxy do servidor, o upgrade pra WebSocket
+        // falha (400) e o Engine.IO cai pra polling de qualquer forma —
+        // aqui evitamos a tentativa/log repetido de upgrade. O volume de
+        // dados do app (~1 msg/s) não sente diferença de latência.
+        const socket = io({ transports: ['polling'] });
+
+        const statusBadgeEl = document.getElementById('status-badge');
+        const statusTextEl = document.getElementById('status-text');
+
+        socket.on('status_arduino', (dados) => {
+            if (dados.conectado) {
+                statusBadgeEl.classList.remove('pending', 'offline');
+                statusBadgeEl.classList.add('online');
+                statusTextEl.textContent = 'Online';
+            } else {
+                statusBadgeEl.classList.remove('pending', 'online');
+                statusBadgeEl.classList.add('offline');
+                statusTextEl.textContent = 'Offline';
+            }
+        });
+
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js').catch(() => {});
+        }
+    </script>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>

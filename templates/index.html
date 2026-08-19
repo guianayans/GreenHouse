@@ -1,0 +1,236 @@
+{% extends "base.html" %}
+
+{% block title %}GreenHouse{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/plotly.js-dist-min"></script>
+<link rel="stylesheet" href="{{ static_url('dashboard.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="dash">
+
+    <div class="vaso-track">
+        {% for v in vasos %}
+        <div class="panel vaso-panel">
+            <div class="panel-head">
+                <h2>{{ v.nome }}</h2>
+                <span class="vaso-reading" id="vaso-reading-{{ v.vaso_index }}">-- %</span>
+            </div>
+            <div class="sensor-warnings" id="sensor-warning-{{ v.vaso_index }}"></div>
+            <div id="chart-vaso-{{ v.vaso_index }}" class="vaso-chart"></div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="section-label">Câmera</div>
+    <div class="panel camera-panel">
+        <img id="camera-feed" class="camera-feed" src="{{ url_for('camera_stream') }}" alt="Câmera da estufa">
+        <p class="camera-status" id="camera-status"></p>
+    </div>
+
+    <div class="section-label">Rega</div>
+    <div class="panel stat-group">
+        <div class="stat-item">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="stat-icon">
+                <path d="M12 3c-3 4-6 7.5-6 11a6 6 0 0 0 12 0c0-3.5-3-7-6-11Z"/>
+            </svg>
+            <div class="stat-label">Última rega</div>
+            <div class="stat-value" id="ultima-rega">--</div>
+        </div>
+        <div class="stat-item">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="stat-icon">
+                <path d="M3 12a9 9 0 1 0 9-9"/>
+                <path d="M3 4v8h8"/>
+            </svg>
+            <div class="stat-label">Regas (24h)</div>
+            <div class="stat-value" id="contagem-regas">0</div>
+        </div>
+        <div class="stat-item">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="stat-icon">
+                <circle cx="12" cy="12" r="9"/>
+                <path d="M12 7v5l3 3"/>
+            </svg>
+            <div class="stat-label">Próxima rega</div>
+            <div class="stat-value" id="proxima-rega">--</div>
+        </div>
+    </div>
+
+    <div class="section-label">Ambiente</div>
+    <div class="panel stat-group">
+        <div class="stat-item">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="stat-icon">
+                <path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0Z"/>
+            </svg>
+            <div class="stat-label">Temperatura</div>
+            <div class="stat-value" id="temperatura">--</div>
+        </div>
+        <div class="stat-item">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="stat-icon">
+                <path d="M12 2s6 7 6 12a6 6 0 0 1-12 0c0-5 6-12 6-12Z"/>
+            </svg>
+            <div class="stat-label">Umidade do ar</div>
+            <div class="stat-value" id="umidade-ar">--</div>
+        </div>
+        <div class="stat-item vpd-item" id="card-vpd">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="stat-icon">
+                <path d="M3 12h4l3 8 4-16 3 8h4"/>
+            </svg>
+            <div class="stat-label">VPD</div>
+            <div class="stat-value" id="vpd">--</div>
+            <div class="stat-sub" id="vpd-classificacao">--</div>
+        </div>
+    </div>
+
+    <div class="panel legend-panel">
+        <h3 class="group-title">Faixas de VPD</h3>
+        <div class="legend-row">
+            <span class="legend-chip"><i class="dot dot-red"></i>&lt; 0,7 ou ≥ 2,0 — Atenção</span>
+            <span class="legend-chip"><i class="dot dot-blue"></i>&lt; 1,0 — Vegetativo</span>
+            <span class="legend-chip"><i class="dot dot-green"></i>&lt; 1,4 — Floração IN</span>
+            <span class="legend-chip"><i class="dot dot-amber"></i>≥ 1,4 — Floração OUT</span>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function montarLayout() {
+        return {
+            plot_bgcolor: 'rgba(0,0,0,0)',
+            paper_bgcolor: 'rgba(0,0,0,0)',
+            font: { family: '-apple-system, Segoe UI, Roboto, sans-serif', color: '#9aa6a0' },
+            margin: { t: 10, r: 16, b: 46, l: 42 },
+            showlegend: false,
+            xaxis: {
+                title: 'Tempo (horas)',
+                showgrid: true,
+                zeroline: false,
+                gridcolor: 'rgba(255,255,255,0.06)',
+                linecolor: 'rgba(255,255,255,0.12)'
+            },
+            yaxis: {
+                title: 'Umidade (%)',
+                range: [0, 100],
+                showgrid: true,
+                zeroline: false,
+                gridcolor: 'rgba(255,255,255,0.06)',
+                linecolor: 'rgba(255,255,255,0.12)'
+            },
+            shapes: [
+                { type: 'rect', xref: 'paper', yref: 'y', x0: 0, y0: 0,  x1: 1, y1: 45,  fillcolor: 'rgba(251,113,133,0.07)', line: { width: 0 } },
+                { type: 'rect', xref: 'paper', yref: 'y', x0: 0, y0: 45, x1: 1, y1: 65,  fillcolor: 'rgba(74,222,128,0.07)', line: { width: 0 } },
+                { type: 'rect', xref: 'paper', yref: 'y', x0: 0, y0: 65, x1: 1, y1: 100, fillcolor: 'rgba(56,189,248,0.07)', line: { width: 0 } }
+            ]
+        };
+    }
+
+    // Índices dos vasos configurados agora (1 a 4, conforme a topologia)
+    const vasos = {{ vasos|map(attribute='vaso_index')|list|tojson }};
+    const PALETA_VASOS = ['#f5a623', '#38bdf8', '#4ade80', '#fb7185'];
+
+    vasos.forEach((vasoIndex, i) => {
+        const cor = PALETA_VASOS[i % PALETA_VASOS.length];
+        Plotly.newPlot(`chart-vaso-${vasoIndex}`,
+            [{ x: [], y: [], mode: 'lines', line: { color: cor, width: 2.5 } }],
+            montarLayout(),
+            { responsive: true, displaylogo: false });
+    });
+
+    // -----------------------------------------
+    // Dados em tempo real
+    // -----------------------------------------
+    const ultimaRegaEl      = document.getElementById('ultima-rega');
+    const proximaRegaEl     = document.getElementById('proxima-rega');
+    const temperaturaEl     = document.getElementById('temperatura');
+    const umidadeArEl       = document.getElementById('umidade-ar');
+    const vpdEl             = document.getElementById('vpd');
+    const vpdClassEl        = document.getElementById('vpd-classificacao');
+    const contagemRegasEl   = document.getElementById('contagem-regas');
+    const vpdCardEl         = document.getElementById('card-vpd');
+
+    const VPD_STYLES = {
+        'Atenção':    { border: 'rgba(251,113,133,0.4)', bg: 'rgba(251,113,133,0.08)', icon: '#fb7185', iconBg: 'rgba(251,113,133,0.16)' },
+        'Vegetativo': { border: 'rgba(56,189,248,0.4)',  bg: 'rgba(56,189,248,0.08)',  icon: '#38bdf8', iconBg: 'rgba(56,189,248,0.16)' },
+        'Flora IN':   { border: 'rgba(74,222,128,0.4)',  bg: 'rgba(74,222,128,0.08)',  icon: '#4ade80', iconBg: 'rgba(74,222,128,0.16)' },
+        'Flora OUT':  { border: 'rgba(245,166,35,0.45)', bg: 'rgba(245,166,35,0.1)',   icon: '#f5a623', iconBg: 'rgba(245,166,35,0.18)' }
+    };
+
+    socket.on('update_data', (dados) => {
+        vasos.forEach((vasoIndex) => {
+            const serie = dados.vasos ? dados.vasos[String(vasoIndex)] : null;
+            if (!serie || serie.length === 0) return;
+
+            // "null" na série = sem sensor confiável naquele ciclo (pino
+            // desconectado/instável) — o Plotly já desenha isso como um
+            // buraco na linha, sem precisar de nada especial aqui.
+            Plotly.update(`chart-vaso-${vasoIndex}`, { x: [dados.tempo], y: [serie] });
+
+            const semSensor = dados.sem_sensor && dados.sem_sensor[String(vasoIndex)];
+            const leituraEl = document.getElementById(`vaso-reading-${vasoIndex}`);
+            if (leituraEl) {
+                leituraEl.textContent = semSensor ? 'Sem sensor' : `${serie[serie.length - 1]}%`;
+            }
+
+            const avisoEl = document.getElementById(`sensor-warning-${vasoIndex}`);
+            if (avisoEl) {
+                const suspeito = dados.sensor_suspeito && dados.sensor_suspeito[String(vasoIndex)];
+                if (semSensor) {
+                    avisoEl.innerHTML = '<span class="sensor-warning">⚠ sem sensor conectado nesse vaso</span>';
+                } else if (suspeito) {
+                    avisoEl.innerHTML = '<span class="sensor-warning">⚠ sensor sem variação — verifique a sonda</span>';
+                } else {
+                    avisoEl.innerHTML = '';
+                }
+            }
+        });
+
+        ultimaRegaEl.textContent    = `${dados.ultima} min atrás`;
+        // Com a rega automática desligada, não existe "próxima rega" de
+        // verdade — mostrar uma contagem regressiva seria enganoso.
+        proximaRegaEl.textContent   = dados.rega_automatica ? `${dados.proxima} min` : 'Desativada';
+        temperaturaEl.textContent   = `${dados.temp.toFixed(1)} °C`;
+        umidadeArEl.textContent     = `${dados.umi.toFixed(1)} %`;
+        vpdEl.textContent           = dados.vpd.toFixed(2);
+        vpdClassEl.textContent      = dados.classificacao_vpd;
+        contagemRegasEl.textContent = dados.total_regas_24h;
+
+        const estilo = VPD_STYLES[dados.classificacao_vpd];
+        if (estilo) {
+            vpdCardEl.style.borderColor = estilo.border;
+            vpdCardEl.style.background = estilo.bg;
+            const iconEl = vpdCardEl.querySelector('.stat-icon');
+            iconEl.style.color = estilo.icon;
+            iconEl.style.background = estilo.iconBg;
+        }
+    });
+
+    socket.on('rega_estado', (dados) => {
+        if (dados.em_andamento) {
+            ultimaRegaEl.textContent = `Vaso ${dados.vaso} regando agora...`;
+        }
+    });
+
+    // -----------------------------------------
+    // Câmera (MJPEG via go2rtc) — se a conexão cair, tenta recarregar
+    // sozinho a cada 10s em vez de deixar o ícone de imagem quebrada.
+    // -----------------------------------------
+    const cameraFeedEl   = document.getElementById('camera-feed');
+    const cameraStatusEl = document.getElementById('camera-status');
+    const cameraSrcBase  = cameraFeedEl.src;
+
+    cameraFeedEl.addEventListener('error', () => {
+        cameraFeedEl.classList.add('camera-feed-offline');
+        cameraStatusEl.textContent = 'Câmera offline — tentando reconectar...';
+        setTimeout(() => {
+            cameraFeedEl.src = `${cameraSrcBase}?t=${Date.now()}`;
+        }, 10000);
+    });
+    cameraFeedEl.addEventListener('load', () => {
+        cameraFeedEl.classList.remove('camera-feed-offline');
+        cameraStatusEl.textContent = '';
+    });
+</script>
+{% endblock %}

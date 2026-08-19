@@ -1,0 +1,9 @@
+.env
+go2rtc.yaml
+__pycache__/
+*.pyc
+monitor_leituras.db
+*.db
+.DS_Store
+venv/
+.venv/

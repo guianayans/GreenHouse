@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+
+{% block title %}GreenHouse{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/plotly.js-dist-min"></script>
+<link rel="stylesheet" href="{{ static_url('history.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="hist">
+
+    <div class="panel filter-panel">
+        <form method="get" action="/historico">
+            <label>
+                Data inicial
+                <input type="date" name="start" value="{{ start_date }}">
+            </label>
+            <label>
+                Data final
+                <input type="date" name="end" value="{{ end_date }}">
+            </label>
+            <button type="submit" class="btn">Buscar</button>
+        </form>
+    </div>
+
+    {% if leituras %}
+    <div class="panel chart-panel">
+        <h2>Umidade dos vasos ao longo do tempo</h2>
+        <div id="grafico"></div>
+    </div>
+
+    <div class="panel table-panel">
+        <h2>Registros encontrados</h2>
+        <div class="table-scroll">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Data/Hora</th>
+                        {% for v in vasos %}
+                        <th>{{ v.nome }}</th>
+                        {% endfor %}
+                        <th>Últ. rega</th>
+                        <th>Próx. rega</th>
+                        <th>Temp</th>
+                        <th>Umidade</th>
+                        <th>VPD</th>
+                        <th>Classificação</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for l in leituras %}
+                    <tr>
+                        <td>{{ l.data_hora }}</td>
+                        {% for v in vasos %}
+                        <td>{{ l.vasos.get(v.vaso_index, '--') }}%</td>
+                        {% endfor %}
+                        <td>{{ l.ultima_rega }} min</td>
+                        <td>{{ l.proxima_rega }} min</td>
+                        <td>{{ l.temp }}°C</td>
+                        <td>{{ l.umi }}%</td>
+                        <td>{{ l.vpd }}</td>
+                        <td>{{ l.classificacao_vpd }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% else %}
+    <div class="panel table-panel">
+        <p class="no-data">Nenhum registro encontrado no período selecionado.</p>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+{% if leituras %}
+<script>
+    const leituras = {{ leituras|tojson }};
+    const vasos = {{ vasos|map(attribute='vaso_index')|list|tojson }};
+    const nomesVasos = {{ vasos|map(attribute='nome')|list|tojson }};
+    const PALETA_VASOS = ['#f5a623', '#38bdf8', '#4ade80', '#fb7185'];
+
+    const datas = leituras.map((item) => item.data_plotly);
+
+    const traces = vasos.map((vasoIndex, i) => ({
+        x: datas,
+        y: leituras.map((item) => item.vasos[String(vasoIndex)]),
+        mode: 'lines+markers',
+        name: nomesVasos[i],
+        line: { color: PALETA_VASOS[i % PALETA_VASOS.length], width: 2.5 },
+        marker: { size: 5 },
+    }));
+
+    const layout = {
+        plot_bgcolor: 'rgba(0,0,0,0)',
+        paper_bgcolor: 'rgba(0,0,0,0)',
+        font: { family: '-apple-system, Segoe UI, Roboto, sans-serif', color: '#9aa6a0' },
+        margin: { t: 10, r: 16, b: 60, l: 42 },
+        legend: { orientation: 'h', y: -0.25 },
+        xaxis: {
+            title: 'Data/Hora',
+            type: 'date',
+            tickangle: -45,
+            tickformat: '%b %d, %Y\n%H:%M',
+            showgrid: true,
+            gridcolor: 'rgba(255,255,255,0.06)',
+            linecolor: 'rgba(255,255,255,0.12)'
+        },
+        yaxis: {
+            title: 'Umidade (%)',
+            range: [0, 100],
+            showgrid: true,
+            gridcolor: 'rgba(255,255,255,0.06)',
+            linecolor: 'rgba(255,255,255,0.12)'
+        }
+    };
+
+    Plotly.newPlot('grafico', traces, layout, { responsive: true, displaylogo: false });
+</script>
+{% endif %}
+{% endblock %}

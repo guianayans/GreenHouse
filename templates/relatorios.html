@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+
+{% block title %}GreenHouse{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/plotly.js-dist-min"></script>
+<link rel="stylesheet" href="{{ static_url('reports.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="reports">
+
+    <div class="panel filter-panel">
+        <form method="get" action="/relatorios">
+            <label>
+                Data inicial
+                <input type="date" name="start" value="{{ start_date }}">
+            </label>
+            <label>
+                Data final
+                <input type="date" name="end" value="{{ end_date }}">
+            </label>
+            <button type="submit" class="btn">Atualizar</button>
+            <a class="btn btn-secondary" href="{{ url_for('exportar_historico_csv', start=start_date, end=end_date) }}">Exportar CSV</a>
+        </form>
+    </div>
+
+    <div class="grid grid-4">
+        <div class="stat panel">
+            <div class="stat-label">Total de regas</div>
+            <div class="stat-value">{{ resumo.total_regas }}</div>
+            <div class="stat-sub">{{ resumo.duracao_total_regas_min }} min de bomba ligada</div>
+        </div>
+        <div class="stat panel">
+            <div class="stat-label">VPD médio</div>
+            <div class="stat-value">{{ resumo.vpd_medio if resumo.vpd_medio is not none else '--' }}</div>
+        </div>
+        <div class="stat panel">
+            <div class="stat-label">Temp. média</div>
+            <div class="stat-value">{{ resumo.temp_media if resumo.temp_media is not none else '--' }}°C</div>
+        </div>
+        <div class="stat panel">
+            <div class="stat-label">Umidade do ar média</div>
+            <div class="stat-value">{{ resumo.umi_media if resumo.umi_media is not none else '--' }}%</div>
+        </div>
+        {% for v in vasos %}
+        <div class="stat panel">
+            <div class="stat-label">Umidade média {{ v.nome }}</div>
+            <div class="stat-value">{{ v.umidade_media if v.umidade_media is not none else '--' }}%</div>
+        </div>
+        {% endfor %}
+        <div class="stat panel">
+            <div class="stat-label">Leituras no período</div>
+            <div class="stat-value">{{ resumo.total_leituras }}</div>
+        </div>
+    </div>
+
+    <div class="panel">
+        <h2>Regas por dia</h2>
+        {% if regas_por_dia %}
+        <div id="grafico-regas"></div>
+        {% else %}
+        <p class="no-data">Nenhuma rega registrada no período selecionado.</p>
+        {% endif %}
+    </div>
+
+    <div class="panel">
+        <h2>Distribuição por classificação de VPD</h2>
+        {% if distribuicao_vpd %}
+        <div class="vpd-dist">
+            {% for classe, total in distribuicao_vpd.items() %}
+            <span class="legend-chip">{{ classe }}: {{ total }}</span>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="no-data">Sem dados suficientes no período selecionado.</p>
+        {% endif %}
+    </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+{% if regas_por_dia %}
+<script>
+    const regasPorDia = {{ regas_por_dia|tojson }};
+
+    const dias = regasPorDia.map(r => r.dia);
+    const totais = regasPorDia.map(r => r.total);
+
+    Plotly.newPlot('grafico-regas', [{
+        x: dias,
+        y: totais,
+        type: 'bar',
+        marker: { color: '#f5a623' }
+    }], {
+        plot_bgcolor: 'rgba(0,0,0,0)',
+        paper_bgcolor: 'rgba(0,0,0,0)',
+        font: { family: '-apple-system, Segoe UI, Roboto, sans-serif', color: '#9aa6a0' },
+        margin: { t: 10, r: 16, b: 40, l: 36 },
+        xaxis: { showgrid: false, linecolor: 'rgba(255,255,255,0.12)' },
+        yaxis: { showgrid: true, gridcolor: 'rgba(255,255,255,0.06)', linecolor: 'rgba(255,255,255,0.12)' }
+    }, { responsive: true, displaylogo: false });
+</script>
+{% endif %}
+{% endblock %}

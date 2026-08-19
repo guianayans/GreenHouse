@@ -1,0 +1,420 @@
+/* =========================================================
+   GreenHouse — núcleo visual compartilhado
+   Sem dependência de rede (fontes do sistema), sem @import
+   encadeado entre arquivos — cada página faz seu próprio
+   <link> direto para evitar problemas de cache/carregamento.
+========================================================= */
+
+:root {
+  /* Base com leve tom esverdeado (estufa à noite), não um cinza neutro */
+  --bg:            #070a07;
+  --surface:       #161f16;
+  --surface-2:     #1c281b;
+  --border:        rgba(170, 220, 180, 0.13);
+  --border-strong: rgba(180, 225, 190, 0.24);
+
+  --text:          #edf1ee;
+  --text-dim:      #9aa6a0;
+  --text-faint:    #616e67;
+
+  --amber:         #f5a623;
+  --amber-soft:    rgba(245, 166, 35, 0.14);
+  --green:         #4ade80;
+  --green-soft:    rgba(74, 222, 128, 0.14);
+  --blue:          #38bdf8;
+  --blue-soft:     rgba(56, 189, 248, 0.14);
+  --red:           #fb7185;
+  --red-soft:      rgba(251, 113, 133, 0.14);
+
+  /* Tons decorativos (glows de fundo) — separados dos semânticos acima
+     pra não misturar "cor de status" com "clima visual" do app */
+  --glow-leaf: rgba(52, 211, 153, 0.09);
+  --glow-lamp: rgba(245, 166, 35, 0.075);
+
+  --radius-lg: 18px;
+  --radius-md: 12px;
+  --radius-sm: 8px;
+  --shadow: 0 18px 40px -16px rgba(0, 0, 0, 0.6);
+
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+}
+
+body {
+  font-family: var(--font);
+  background: linear-gradient(180deg, #0c1712 0%, #050a06 100%);
+  color: var(--text);
+  min-height: 100vh;
+  position: relative;
+  overflow-x: hidden;
+}
+
+/* Fundo vivo: dois "blobs" que migram devagar pela tela — clorofila
+   (verde) e luz de cultivo (âmbar), efeito lava-lamp discreto em vez de
+   um preto chapado atrás do conteúdo.
+   Importante: NÃO usar filter:blur() aqui — a combinação position:fixed
+   + filter:blur() tem um bug conhecido no Safari mobile que causa "cortes"
+   visíveis durante o scroll (o blur é re-rasterizado só dentro da viewport
+   a cada frame). Em vez de desenhar um círculo sólido e borrar, o próprio
+   radial-gradient com vários estágios de cor já fica suave sem filter. */
+body::before,
+body::after {
+  content: '';
+  position: fixed;
+  z-index: 0;
+  pointer-events: none;
+}
+
+body::before {
+  width: 900px;
+  height: 900px;
+  top: -320px;
+  left: -280px;
+  background: radial-gradient(circle, rgba(52, 211, 153, 0.3) 0%, rgba(52, 211, 153, 0.14) 32%, rgba(52, 211, 153, 0.05) 55%, transparent 72%);
+  animation: driftLeaf 28s ease-in-out infinite alternate;
+}
+
+body::after {
+  width: 800px;
+  height: 800px;
+  bottom: -300px;
+  right: -260px;
+  background: radial-gradient(circle, rgba(245, 166, 35, 0.24) 0%, rgba(245, 166, 35, 0.11) 32%, rgba(245, 166, 35, 0.04) 55%, transparent 72%);
+  animation: driftLamp 34s ease-in-out infinite alternate;
+}
+
+@keyframes driftLeaf {
+  from { transform: translate(0, 0) scale(1); }
+  to   { transform: translate(90px, 70px) scale(1.12); }
+}
+
+@keyframes driftLamp {
+  from { transform: translate(0, 0) scale(1); }
+  to   { transform: translate(-80px, -60px) scale(1.08); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body::before, body::after { animation: none; }
+}
+
+.app-shell {
+  position: relative;
+  z-index: 1;
+}
+
+svg { display: block; }
+
+a { color: inherit; }
+
+/* -----------------------------------------
+   Estrutura geral: sidebar (desktop) + bottom nav (mobile)
+------------------------------------------ */
+.app-shell {
+  display: flex;
+  min-height: 100vh;
+}
+
+.content-area {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  /* Evita o conteúdo ficar atrás do notch/status bar quando instalado como
+     PWA (display:standalone + viewport-fit=cover) — 0px em navegador normal. */
+  padding-top: env(safe-area-inset-top);
+}
+
+/* -----------------------------------------
+   Sidebar (desktop, >= 768px)
+------------------------------------------ */
+.sidebar {
+  width: 232px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  background:
+    radial-gradient(260px 220px at 0% 0%, var(--glow-leaf), transparent 72%),
+    linear-gradient(180deg, rgba(19, 27, 17, 0.97), rgba(8, 11, 7, 0.99));
+  border-right: 1px solid var(--border);
+  padding: calc(20px + env(safe-area-inset-top)) 14px 20px;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+}
+
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  font-size: 1.02rem;
+  color: var(--text);
+  padding: 6px 11px 22px;
+}
+
+.sidebar-brand svg {
+  color: var(--amber);
+  flex-shrink: 0;
+}
+
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1;
+}
+
+.sidebar-link {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px 10px 11px;
+  border-left: 3px solid transparent;
+  border-radius: var(--radius-sm);
+  text-decoration: none;
+  color: var(--text-faint);
+  font-weight: 600;
+  font-size: 0.92rem;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.sidebar-link svg { flex-shrink: 0; }
+
+.sidebar-link:hover {
+  color: var(--text-dim);
+  background: var(--surface-2);
+}
+
+.sidebar-link.active {
+  color: var(--text);
+  background: var(--amber-soft);
+  border-left-color: var(--amber);
+  box-shadow: 0 4px 16px -6px rgba(245, 166, 35, 0.35);
+}
+
+.sidebar-link.active svg {
+  filter: drop-shadow(0 0 5px rgba(245, 166, 35, 0.45));
+}
+
+.sidebar-footer {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  padding-top: 14px;
+  margin-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.sidebar-footer .status-pill { justify-content: center; }
+
+.sidebar-footer .logout-link {
+  text-align: center;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-faint);
+  text-decoration: none;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.sidebar-footer .logout-link:hover {
+  color: var(--text);
+  border-color: var(--border-strong);
+}
+
+/* -----------------------------------------
+   Bottom nav flutuante (mobile, < 768px)
+------------------------------------------ */
+.bottom-nav {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .sidebar { display: none; }
+
+  .bottom-nav {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    position: fixed;
+    left: 50%;
+    bottom: calc(14px + env(safe-area-inset-bottom));
+    transform: translateX(-50%);
+    width: min(calc(100vw - 32px), 420px);
+    gap: 2px;
+    background:
+      radial-gradient(200px 130px at 50% 0%, var(--glow-leaf), transparent 72%),
+      linear-gradient(180deg, rgba(21, 29, 19, 0.95), rgba(9, 12, 8, 0.97));
+    border: 1px solid var(--border-strong);
+    border-radius: 28px;
+    padding: 7px;
+    box-shadow: 0 14px 34px -12px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    z-index: 50;
+  }
+
+  .content-area {
+    padding-bottom: calc(92px + env(safe-area-inset-bottom));
+  }
+}
+
+.bottom-nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 9px 4px;
+  border-radius: 20px;
+  text-decoration: none;
+  color: var(--text-faint);
+  font-size: 0.66rem;
+  font-weight: 600;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.bottom-nav-item svg { flex-shrink: 0; }
+
+.bottom-nav-item.active {
+  color: var(--amber);
+  background: var(--amber-soft);
+}
+
+.bottom-nav-item.active svg {
+  filter: drop-shadow(0 0 5px rgba(245, 166, 35, 0.5));
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-faint);
+  padding: 5px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-faint);
+}
+
+/* Estado: aguardando o primeiro status do servidor (sem pulso) */
+.status-pill.pending .status-dot {
+  background: var(--text-faint);
+}
+
+/* Estado: Arduino conectado */
+.status-pill.online {
+  color: var(--green);
+}
+.status-pill.online .status-dot {
+  background: var(--green);
+  animation: dot-pulse-green 1.8s infinite;
+}
+
+/* Estado: Arduino desconectado */
+.status-pill.offline {
+  color: var(--red);
+}
+.status-pill.offline .status-dot {
+  background: var(--red);
+  animation: dot-pulse-red 1.8s infinite;
+}
+
+@keyframes dot-pulse-green {
+  0%   { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.55); }
+  70%  { box-shadow: 0 0 0 7px rgba(74, 222, 128, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0); }
+}
+
+@keyframes dot-pulse-red {
+  0%   { box-shadow: 0 0 0 0 rgba(251, 113, 133, 0.55); }
+  70%  { box-shadow: 0 0 0 7px rgba(251, 113, 133, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(251, 113, 133, 0); }
+}
+
+/* -----------------------------------------
+   Painel / cartão base
+------------------------------------------ */
+.panel {
+  background:
+    radial-gradient(220px 110px at 6% 0%, var(--glow-leaf), transparent 72%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0) 42%),
+    var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 14px 32px -16px rgba(0, 0, 0, 0.6);
+}
+
+/* -----------------------------------------
+   Botão
+------------------------------------------ */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: var(--amber);
+  color: #1a1300;
+  font-family: var(--font);
+  font-weight: 700;
+  font-size: 0.92rem;
+  border: none;
+  padding: 11px 20px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: filter 0.15s ease, transform 0.15s ease;
+}
+
+.btn:hover { filter: brightness(1.08); transform: translateY(-1px); }
+.btn:active { transform: translateY(0); }
+
+/* -----------------------------------------
+   Título da página (topo do conteúdo)
+------------------------------------------ */
+.page-title {
+  font-size: 1.55rem;
+  font-weight: 800;
+  letter-spacing: -0.015em;
+  color: var(--text);
+  margin-bottom: 20px;
+}
+
+@media (max-width: 767px) {
+  .page-title {
+    font-size: 1.3rem;
+    margin-bottom: 16px;
+  }
+}
+
+/* -----------------------------------------
+   Rodapé
+------------------------------------------ */
+.site-footer {
+  text-align: center;
+  color: var(--text-faint);
+  font-size: 0.78rem;
+  padding: 20px 16px;
+  margin-top: auto;
+}
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 999px; }

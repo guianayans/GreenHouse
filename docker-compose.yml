@@ -1,0 +1,87 @@
+# Gerado a partir de server-app-base/docker-compose.empty.yml
+# Referência: server-app-base/INSTRUCOES-PARA-IA.md
+
+services:
+  greenhouse:
+    container_name: greenhouse
+    build:
+      context: /pendriver/greenhouse
+      dockerfile: Dockerfile
+    image: greenhouse-local:latest
+    pull_policy: build
+    working_dir: /app
+    privileged: true
+    volumes:
+      - /pendriver/greenhouse:/app
+      - /pendriver/greenhouse_hist:/data
+      - /dev:/dev
+    environment:
+      PORT: "4022"
+      GREENHOUSE_USERNAME: ${GREENHOUSE_USERNAME}
+      GREENHOUSE_PASSWORD: ${GREENHOUSE_PASSWORD}
+      GREENHOUSE_SESSION_SECRET: ${GREENHOUSE_SESSION_SECRET}
+      GREENHOUSE_HIST_DIR: /data
+      # GREENHOUSE_SERIAL_PORT: ${GREENHOUSE_SERIAL_PORT}
+      # Opcional: só precisa descomentar se quiser sobrescrever os padrões
+      # (serviço "go2rtc" nesta mesma rede / stream "estufa" no go2rtc.yaml)
+      # GREENHOUSE_GO2RTC_URL: ${GREENHOUSE_GO2RTC_URL}
+      # GREENHOUSE_CAMERA_STREAM: ${GREENHOUSE_CAMERA_STREAM}
+    restart: unless-stopped
+    healthcheck:
+      test:
+        - CMD
+        - python3
+        - '-c'
+        - "import urllib.request,sys; sys.exit(0) if urllib.request.urlopen('http://127.0.0.1:4022/health').status==200 else sys.exit(1)"
+      interval: 20s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
+    networks:
+      - coolify
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    labels:
+      - traefik.enable=true
+      - 'traefik.http.routers.greenhouse.rule=Host(`greenhouse.gvtserver.online`) || Host(`www.greenhouse.gvtserver.online`)'
+      - traefik.http.routers.greenhouse.entrypoints=https
+      - traefik.http.services.greenhouse.loadbalancer.server.port=4022
+      - 'traefik.http.routers.greenhouse.middlewares=greenhouse-sec'
+      - traefik.http.middlewares.greenhouse-sec.headers.forceSTSHeader=true
+      - traefik.http.middlewares.greenhouse-sec.headers.stsSeconds=31536000
+      - traefik.http.middlewares.greenhouse-sec.headers.stsIncludeSubdomains=true
+      - traefik.http.middlewares.greenhouse-sec.headers.stsPreload=true
+      - traefik.http.middlewares.greenhouse-sec.headers.contentTypeNosniff=true
+      - traefik.http.middlewares.greenhouse-sec.headers.referrerPolicy=strict-origin-when-cross-origin
+      - traefik.http.middlewares.greenhouse-sec.headers.customResponseHeaders.X-Frame-Options=SAMEORIGIN
+      - traefik.http.middlewares.greenhouse-sec.headers.customResponseHeaders.Cross-Origin-Resource-Policy=same-site
+      - 'traefik.http.middlewares.greenhouse-sec.headers.customResponseHeaders.Permissions-Policy=camera=(), microphone=(), geolocation=()'
+
+  # Restream da câmera do DVR (RTSP -> MJPEG). Não tem router/labels do
+  # Traefik: fica só na rede interna "coolify", acessível apenas pelo
+  # próprio container "greenhouse" via http://go2rtc:1984 — o acesso ao
+  # vídeo passa pelo login do dashboard (rota /camera/stream em app.py),
+  # não fica exposto direto na internet.
+  go2rtc:
+    container_name: greenhouse-go2rtc
+    image: alexxit/go2rtc:latest
+    restart: unless-stopped
+    volumes:
+      - /pendriver/greenhouse/go2rtc.yaml:/config/go2rtc.yaml:ro
+    healthcheck:
+      test:
+        - CMD
+        - curl
+        - '-f'
+        - 'http://127.0.0.1:1984/api'
+      interval: 20s
+      timeout: 5s
+      retries: 6
+      start_period: 15s
+    networks:
+      - coolify
+
+networks:
+  coolify:
+    external: true

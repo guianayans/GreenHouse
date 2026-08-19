@@ -1,0 +1,236 @@
+.page {
+  width: 100%;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 26px 24px 10px;
+  flex: 1;
+}
+
+.dash {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.panel-head h2 {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-dim);
+}
+
+/* -----------------------------------------
+   Gráficos dos vasos — lado a lado no desktop,
+   empilhados no mobile (sem swipe/carrossel:
+   só rola a página, igual a qualquer outro card)
+------------------------------------------ */
+.vaso-track {
+  display: grid;
+  /* Se adapta a 1-4 vasos sozinho: cada painel tenta ficar com pelo menos
+     320px, quebrando linha conforme precisar (2 colunas com 2-3 vasos,
+     etc), sem precisar de CSS/JS específico por quantidade. */
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 18px;
+}
+
+.vaso-panel {
+  padding: 18px 18px 14px;
+}
+
+.vaso-reading {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.vaso-chart {
+  width: 100%;
+  height: 320px;
+}
+
+@media (max-width: 767px) {
+  .vaso-track {
+    grid-template-columns: 1fr;
+  }
+}
+
+.sensor-warnings {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: -4px 0 12px;
+}
+
+.sensor-warning {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #fde68a;
+  background: var(--amber-soft);
+  border: 1px solid rgba(245, 166, 35, 0.4);
+  padding: 5px 12px;
+  border-radius: 999px;
+}
+
+.section-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-faint);
+  margin: 4px 2px 0;
+}
+
+/* -----------------------------------------
+   Cartões de métricas — um único painel por
+   seção (Rega/Ambiente), itens separados por
+   divisórias finas em vez de caixas soltas
+------------------------------------------ */
+.stat-group {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.stat-item {
+  position: relative;
+  padding: 20px 22px;
+}
+
+.stat-item:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  top: 18%;
+  bottom: 18%;
+  right: 0;
+  width: 1px;
+  background: var(--border);
+}
+
+.stat-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  padding: 9px;
+  box-sizing: border-box;
+  border-radius: 11px;
+  background: var(--amber-soft);
+  color: var(--amber);
+  margin-bottom: 14px;
+  transition: background 0.35s ease, color 0.35s ease;
+}
+
+.stat-label {
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--text-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 7px;
+}
+
+.stat-value {
+  font-size: 1.55rem;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.01em;
+}
+
+.stat-sub {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-dim);
+  margin-top: 2px;
+}
+
+.vpd-item {
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  transition: background 0.35s ease, border-color 0.35s ease;
+}
+
+@media (max-width: 767px) {
+  .stat-group {
+    grid-template-columns: 1fr;
+  }
+  .stat-item:not(:last-child)::after {
+    top: auto;
+    bottom: 0;
+    left: 20px;
+    right: 20px;
+    width: auto;
+    height: 1px;
+  }
+}
+
+.legend-panel {
+  padding: 18px 20px;
+}
+
+.legend-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.legend-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  padding: 7px 14px;
+  border-radius: 999px;
+}
+
+.dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: inline-block;
+}
+
+.dot-red   { background: var(--red); }
+.dot-blue  { background: var(--blue); }
+.dot-green { background: var(--green); }
+.dot-amber { background: var(--amber); }
+
+@media (max-width: 560px) {
+  .vaso-chart { height: 260px; }
+}
+
+.camera-panel {
+  padding: 14px;
+}
+
+.camera-feed {
+  width: 100%;
+  max-height: 480px;
+  min-height: 200px;
+  display: block;
+  object-fit: contain;
+  border-radius: var(--radius-md);
+  background: #000;
+}
+
+.camera-feed-offline {
+  color: transparent;
+}
+
+.camera-status {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-dim);
+  margin: 8px 2px 0;
+  min-height: 1.1em;
+}

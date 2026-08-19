@@ -1,0 +1,22 @@
+# Copiar para go2rtc.yaml no servidor (NUNCA commitar go2rtc.yaml com a
+# URL/credenciais reais do DVR — mesma lógica do .env/.env.example).
+#
+# "estufa" é o nome do stream — usado pelo app.py (GREENHOUSE_CAMERA_STREAM)
+# pra saber qual stream pedir ao go2rtc. Troque a URL pela RTSP real do seu
+# DVR (usuário, senha, IP e canal). subtype=1 = substream (mais leve, ideal
+# pra visualização web); subtype=0 = stream principal (mais pesado).
+
+streams:
+  estufa:
+    # "ffmpeg:...#video=mjpeg" avisa o go2rtc pra usar o ffmpeg embutido pra
+    # transcodificar o H264 do DVR em MJPEG — sem isso, o endpoint
+    # /api/stream.mjpeg dá erro "codecs not matched: video:H264 => video:JPEG".
+    # subtype=0 = stream principal do DVR (resolução alta — a substream
+    # costuma ficar "chiada"/borrada mesmo com JPEG de boa qualidade).
+    # "-q:v 4" = qualidade JPEG (2 = quase sem perda, 31 = pior; 4 é bem
+    # nítido). "-r 12" = limita a 12 fps pra compensar o peso da resolução
+    # maior (de sobra pra ver a planta se mexendo, sem pesar na rede/CPU).
+    - "ffmpeg:rtsp://usuario:senha@192.168.0.108:554/cam/realmonitor?channel=1&subtype=0#video=mjpeg#raw=-q:v 4 -r 12"
+
+api:
+  listen: ":1984"

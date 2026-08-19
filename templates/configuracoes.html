@@ -1,0 +1,478 @@
+{% extends "base.html" %}
+
+{% block title %}GreenHouse{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{{ static_url('settings.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="settings">
+
+    {% if erro %}
+    <div class="panel banner banner-erro">{{ erro }}</div>
+    {% endif %}
+    {% if sucesso %}
+    <div class="panel banner banner-sucesso">{{ sucesso }}</div>
+    {% endif %}
+
+    <div class="panel">
+        <h2>Modo de cultivo</h2>
+        <p class="hint">Escolher um modo preenche os campos abaixo com um preset de referência — os valores continuam editáveis depois de escolher.</p>
+
+        <div class="mode-toggle">
+            <button type="button" class="mode-btn {{ 'selected' if config.modo == 'vega' else '' }}"
+                    data-modo="vega"
+                    data-low="{{ presets.vega.umidade_low }}"
+                    data-high="{{ presets.vega.umidade_high }}"
+                    data-intervalo="{{ presets.vega.intervalo_min }}"
+                    data-volume="{{ presets.vega.volume_ml }}">
+                Vegetativo
+            </button>
+            <button type="button" class="mode-btn {{ 'selected' if config.modo == 'flora' else '' }}"
+                    data-modo="flora"
+                    data-low="{{ presets.flora.umidade_low }}"
+                    data-high="{{ presets.flora.umidade_high }}"
+                    data-intervalo="{{ presets.flora.intervalo_min }}"
+                    data-volume="{{ presets.flora.volume_ml }}">
+                Floração
+            </button>
+        </div>
+
+        <form method="POST" action="{{ url_for('configuracoes') }}" id="form-config">
+            <input type="hidden" name="modo" id="input-modo" value="{{ config.modo }}">
+
+            <div class="toggle-row">
+                <label class="toggle-switch">
+                    <input type="checkbox" name="rega_automatica" {{ 'checked' if config.rega_automatica else '' }}>
+                    <span class="toggle-slider"></span>
+                </label>
+                <div>
+                    <strong>Rega automática</strong>
+                    <p class="field-hint">Desligada: só rega quando você mandar manualmente, em "Controles manuais". Ligada: o Arduino também rega sozinho por tempo/umidade (configurado abaixo). Reativar recomeça a contagem do intervalo do zero, não dispara na hora.</p>
+                </div>
+            </div>
+
+            <div class="field-grid">
+                <div class="field">
+                    <label for="umidade_low">Umidade mínima (%)</label>
+                    <input type="number" id="umidade_low" name="umidade_low" min="0" max="100" value="{{ config.umidade_low }}" required>
+                    <span class="field-hint">Abaixo disso, o vaso é considerado seco e a rega automática dispara.</span>
+                </div>
+                <div class="field">
+                    <label for="umidade_high">Umidade de corte (%)</label>
+                    <input type="number" id="umidade_high" name="umidade_high" min="0" max="100" value="{{ config.umidade_high }}" required>
+                    <span class="field-hint">Ao atingir esse valor, a rega para mesmo antes do volume alvo.</span>
+                </div>
+                <div class="field">
+                    <label for="intervalo_min">Intervalo entre checagens (min)</label>
+                    <input type="number" id="intervalo_min" name="intervalo_min" min="1" value="{{ config.intervalo_min }}" required>
+                    <span class="field-hint">De quanto em quanto tempo o Arduino reavalia se precisa regar.</span>
+                </div>
+                <div class="field">
+                    <label for="volume_ml">Volume alvo por rega (ml)</label>
+                    <input type="number" id="volume_ml" name="volume_ml" min="1" value="{{ config.volume_ml }}" required>
+                    <span class="field-hint">Quanto as bombas daquele vaso, juntas, tentam entregar por ciclo de rega.</span>
+                </div>
+            </div>
+
+            <button type="submit" class="btn">Salvar e enviar ao Arduino</button>
+        </form>
+    </div>
+
+    <div class="panel">
+        <h2>Vasos e sensores</h2>
+        <p class="hint">Você tem {{ num_slots }} sensores/bombas físicos cabeados (Sensor A0/Bomba 8, A1/9, A2/10, A3/11). Escolha quantos vasos existem e a qual vaso cada sensor/bomba pertence — pode juntar vários num vaso só, separar um por vaso, ou marcar "Não usar" pra deixar algum sensor/bomba desligado (ex: 3 vasos com 1 sensor cada, sobrando 1 sem uso).</p>
+
+        <div class="toggle-row">
+            <label class="toggle-switch">
+                <input type="checkbox" id="input-modo-avancado" {{ 'checked' if modo_avancado_ativo else '' }}>
+                <span class="toggle-slider"></span>
+            </label>
+            <div>
+                <strong>Modo avançado: sensor e bomba separados</strong>
+                <p class="field-hint">Desligado (padrão): cada sensor/bomba pertence ao mesmo vaso, sempre juntos. Ligado: escolha o vaso do sensor e o vaso da bomba de cada slot de forma independente — útil pra um vaso só de monitoramento (sensor sem bomba) ou uma bomba extra sem sensor dedicado.</p>
+            </div>
+        </div>
+
+        <div class="mode-toggle" id="vaso-count-toggle">
+            {% for n in range(1, num_slots + 1) %}
+            <button type="button" class="mode-btn {{ 'selected' if topologia|length == n else '' }}" data-num="{{ n }}">{{ n }} vaso{{ 's' if n > 1 else '' }}</button>
+            {% endfor %}
+        </div>
+
+        <div class="field-grid" id="vaso-nomes-grid">
+            {% for v in topologia %}
+            <div class="field">
+                <label>Nome do vaso {{ v.vaso_index }}</label>
+                <input type="text" class="input-nome-vaso" data-vaso="{{ v.vaso_index }}" value="{{ v.nome }}">
+            </div>
+            {% endfor %}
+        </div>
+
+        <table class="slots-table">
+            <thead>
+                <tr>
+                    <th>Sensor / Bomba</th>
+                    <th class="col-sensor">Sensor pertence a</th>
+                    <th class="col-bomba avancado-only">Bomba pertence a</th>
+                </tr>
+            </thead>
+            <tbody id="slots-tbody">
+                {% for slot in range(num_slots) %}
+                <tr>
+                    <td>Sensor A{{ slot }} / Bomba {{ 8 + slot }}</td>
+                    <td>
+                        <select class="select-sensor" data-slot="{{ slot }}">
+                            <option value="0" {{ 'selected' if slot not in sensor_para_vaso else '' }}>Não usar</option>
+                            {% for n in range(1, topologia|length + 1) %}
+                            <option value="{{ n }}" {{ 'selected' if sensor_para_vaso.get(slot) == n else '' }}>Vaso {{ n }}</option>
+                            {% endfor %}
+                        </select>
+                    </td>
+                    <td class="avancado-only">
+                        <select class="select-bomba" data-slot="{{ slot }}">
+                            <option value="0" {{ 'selected' if slot not in bomba_para_vaso else '' }}>Não usar</option>
+                            {% for n in range(1, topologia|length + 1) %}
+                            <option value="{{ n }}" {{ 'selected' if bomba_para_vaso.get(slot) == n else '' }}>Vaso {{ n }}</option>
+                            {% endfor %}
+                        </select>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <button type="button" class="btn" id="btn-salvar-topologia">Salvar topologia e enviar ao Arduino</button>
+        <p class="manual-status" id="topologia-status"></p>
+        <p class="hint">Depois de salvar, recarregue a página pra os controles manuais abaixo refletirem os vasos novos.</p>
+    </div>
+
+    <div class="panel">
+        <h2>Controles manuais</h2>
+        <p class="hint">Rega manual usa o mesmo ciclo de segurança da automática (pulsos de 20s, para ao atingir a umidade de corte ou o volume alvo).</p>
+
+        <div class="manual-actions" id="manual-actions">
+            {% for v in topologia %}
+            <button type="button" class="btn btn-regar" data-vaso="{{ v.vaso_index }}">Regar {{ v.nome }} agora</button>
+            {% endfor %}
+            <button type="button" class="btn btn-danger" id="btn-parar">Parar rega</button>
+        </div>
+        <p class="manual-status" id="manual-status"></p>
+    </div>
+
+    <div class="panel">
+        <h2>Manutenção</h2>
+
+        <h3 class="group-title">Teste de bombas</h3>
+        <p class="hint">Liga cada bomba por 10s, uma de cada vez (nunca duas juntas), sem passar pela lógica de volume/umidade da rega normal — útil pra testar fiação/funcionamento. Some ~40s pra passar pelas 4.</p>
+
+        <div class="manual-actions">
+            <button type="button" class="btn btn-danger" id="btn-teste-bombas-ligar">Testar bombas (1 por vez, 10s cada)</button>
+            <button type="button" class="btn" id="btn-teste-bombas-desligar">Parar teste</button>
+        </div>
+        <p class="manual-status" id="teste-bombas-status"></p>
+
+        <p class="hint">Ou ligue uma bomba específica manualmente (fica ligada até você desligar, ou 2 min por segurança):</p>
+        <div class="manual-actions">
+            {% for n in range(1, num_slots + 1) %}
+            <button type="button" class="btn btn-bomba-manual" data-slot="{{ n }}">Bomba {{ n }}</button>
+            {% endfor %}
+            <button type="button" class="btn btn-danger" id="btn-bomba-manual-desligar">Desligar bomba manual</button>
+        </div>
+        <p class="manual-status" id="bomba-manual-status"></p>
+
+        <h3 class="group-title">Reiniciar Arduino</h3>
+        <p class="hint">Reinicia o microcontrolador do Arduino (equivalente a desconectar e reconectar a energia). Ele volta a responder em poucos segundos e recebe a configuração e a topologia atuais automaticamente ao reconectar.</p>
+
+        <div class="manual-actions">
+            <button type="button" class="btn btn-danger" id="btn-reiniciar">Reiniciar Arduino</button>
+        </div>
+        <p class="manual-status" id="reiniciar-status"></p>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Preenche os campos numéricos com o preset ao escolher Vega/Flora
+    document.querySelectorAll('.mode-btn[data-modo]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.mode-btn[data-modo]').forEach((b) => b.classList.remove('selected'));
+            btn.classList.add('selected');
+            document.getElementById('input-modo').value = btn.dataset.modo;
+            document.getElementById('umidade_low').value = btn.dataset.low;
+            document.getElementById('umidade_high').value = btn.dataset.high;
+            document.getElementById('intervalo_min').value = btn.dataset.intervalo;
+            document.getElementById('volume_ml').value = btn.dataset.volume;
+        });
+    });
+
+    // -----------------------------------------
+    // Vasos e sensores (topologia)
+    // -----------------------------------------
+    const numSlots = {{ num_slots }};
+    let numVasosAtual = {{ topologia|length }};
+
+    const vasoCountToggle   = document.getElementById('vaso-count-toggle');
+    const nomesGrid         = document.getElementById('vaso-nomes-grid');
+    const slotsTbody        = document.getElementById('slots-tbody');
+    const slotsTable        = document.querySelector('.slots-table');
+    const colSensorHeader   = document.querySelector('.col-sensor');
+    const inputModoAvancado = document.getElementById('input-modo-avancado');
+    const btnSalvarTopologia = document.getElementById('btn-salvar-topologia');
+    const topologiaStatusEl = document.getElementById('topologia-status');
+
+    function nomesAtuais() {
+        return Array.from(nomesGrid.querySelectorAll('.input-nome-vaso')).map((i) => i.value);
+    }
+
+    function renderNomes(n) {
+        const nomesAntigos = nomesAtuais();
+        nomesGrid.innerHTML = '';
+        for (let i = 1; i <= n; i++) {
+            const div = document.createElement('div');
+            div.className = 'field';
+            const label = document.createElement('label');
+            label.textContent = `Nome do vaso ${i}`;
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'input-nome-vaso';
+            input.dataset.vaso = i;
+            input.value = nomesAntigos[i - 1] || `Vaso ${i}`;
+            div.appendChild(label);
+            div.appendChild(input);
+            nomesGrid.appendChild(div);
+        }
+    }
+
+    function selecoesAtuais(seletor) {
+        return Array.from(slotsTbody.querySelectorAll(seletor)).map((s) => parseInt(s.value, 10));
+    }
+    const sensoresAtuais = () => selecoesAtuais('.select-sensor');
+    const bombasAtuais   = () => selecoesAtuais('.select-bomba');
+
+    function criarSelectVaso(className, slot, n, valorAntigo) {
+        const select = document.createElement('select');
+        select.className = className;
+        select.dataset.slot = slot;
+        const optionNenhum = document.createElement('option');
+        optionNenhum.value = 0;
+        optionNenhum.textContent = 'Não usar';
+        select.appendChild(optionNenhum);
+        for (let v = 1; v <= n; v++) {
+            const option = document.createElement('option');
+            option.value = v;
+            option.textContent = `Vaso ${v}`;
+            select.appendChild(option);
+        }
+        select.value = (valorAntigo && valorAntigo <= n) ? valorAntigo : 1;
+        return select;
+    }
+
+    function renderSlots(n) {
+        const sensoresAntigos = sensoresAtuais();
+        const bombasAntigas = bombasAtuais();
+        slotsTbody.innerHTML = '';
+        for (let slot = 0; slot < numSlots; slot++) {
+            const tr = document.createElement('tr');
+
+            const tdLabel = document.createElement('td');
+            tdLabel.textContent = `Sensor A${slot} / Bomba ${8 + slot}`;
+            tr.appendChild(tdLabel);
+
+            const tdSensor = document.createElement('td');
+            const selectSensor = criarSelectVaso('select-sensor', slot, n, sensoresAntigos[slot]);
+            tdSensor.appendChild(selectSensor);
+            tr.appendChild(tdSensor);
+
+            const tdBomba = document.createElement('td');
+            tdBomba.className = 'avancado-only';
+            const selectBomba = criarSelectVaso('select-bomba', slot, n, bombasAntigas[slot]);
+            tdBomba.appendChild(selectBomba);
+            tr.appendChild(tdBomba);
+
+            // Modo simples: bomba sempre segue o sensor do mesmo slot —
+            // só divergem quando o modo avançado está ligado.
+            selectSensor.addEventListener('change', () => {
+                if (!inputModoAvancado.checked) selectBomba.value = selectSensor.value;
+            });
+
+            slotsTbody.appendChild(tr);
+        }
+    }
+
+    function atualizarVisibilidadeAvancado() {
+        const avancado = inputModoAvancado.checked;
+        slotsTable.classList.toggle('modo-avancado', avancado);
+        colSensorHeader.textContent = avancado ? 'Sensor pertence a' : 'Pertence a';
+        if (!avancado) {
+            // Colapsa: bomba passa a espelhar o sensor de cada linha.
+            slotsTbody.querySelectorAll('.select-sensor').forEach((selectSensor) => {
+                const selectBomba = slotsTbody.querySelector(`.select-bomba[data-slot="${selectSensor.dataset.slot}"]`);
+                if (selectBomba) selectBomba.value = selectSensor.value;
+            });
+        }
+    }
+    inputModoAvancado.addEventListener('change', atualizarVisibilidadeAvancado);
+    atualizarVisibilidadeAvancado();
+
+    vasoCountToggle.querySelectorAll('.mode-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            numVasosAtual = parseInt(btn.dataset.num, 10);
+            vasoCountToggle.querySelectorAll('.mode-btn').forEach((b) => b.classList.remove('selected'));
+            btn.classList.add('selected');
+            renderNomes(numVasosAtual);
+            renderSlots(numVasosAtual);
+        });
+    });
+
+    btnSalvarTopologia.addEventListener('click', async () => {
+        const nomes = nomesAtuais();
+        // Modo simples: ignora os selects de bomba (podem estar
+        // desatualizados se o usuário nunca abriu o modo avançado) e usa
+        // a seleção de sensor pros dois — garante consistência mesmo se
+        // algo ficou fora de sincronia.
+        const avancado = inputModoAvancado.checked;
+        const sensoresEscolhidos = sensoresAtuais();
+        const bombasEscolhidas = avancado ? bombasAtuais() : sensoresEscolhidos;
+
+        function agruparPorVaso(escolhas) {
+            const grupos = {};
+            for (let i = 1; i <= numVasosAtual; i++) grupos[i] = [];
+            escolhas.forEach((vasoEscolhido, slot) => {
+                if (grupos[vasoEscolhido]) grupos[vasoEscolhido].push(slot);
+            });
+            return grupos;
+        }
+
+        const sensoresPorVaso = agruparPorVaso(sensoresEscolhidos);
+        const bombasPorVaso = agruparPorVaso(bombasEscolhidas);
+
+        const vasoSemNada = Array.from({ length: numVasosAtual }, (_, i) => i + 1)
+            .find((i) => sensoresPorVaso[i].length === 0 && bombasPorVaso[i].length === 0);
+        if (vasoSemNada) {
+            topologiaStatusEl.textContent = `Vaso ${vasoSemNada} precisa de pelo menos 1 sensor ou 1 bomba.`;
+            return;
+        }
+
+        const vasos = [];
+        for (let i = 1; i <= numVasosAtual; i++) {
+            vasos.push({ nome: nomes[i - 1] || `Vaso ${i}`, sensores: sensoresPorVaso[i], bombas: bombasPorVaso[i] });
+        }
+
+        topologiaStatusEl.textContent = 'Salvando...';
+        try {
+            const resposta = await fetch('/api/topologia', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ vasos }),
+            });
+            const json = await resposta.json();
+            topologiaStatusEl.textContent = json.ok
+                ? (json.mensagem || 'Topologia salva.')
+                : ('Erro: ' + (json.erro || 'falha desconhecida.'));
+        } catch (e) {
+            topologiaStatusEl.textContent = 'Erro ao salvar: ' + e;
+        }
+    });
+
+    // -----------------------------------------
+    // Controles manuais: habilitados só quando o Arduino está online
+    // -----------------------------------------
+    const btnParar     = document.getElementById('btn-parar');
+    const btnReiniciar = document.getElementById('btn-reiniciar');
+    const btnTesteBombasLigar = document.getElementById('btn-teste-bombas-ligar');
+    const btnTesteBombasDesligar = document.getElementById('btn-teste-bombas-desligar');
+    const btnBombaManualDesligar = document.getElementById('btn-bomba-manual-desligar');
+    const statusEl     = document.getElementById('manual-status');
+    const reiniciarStatusEl = document.getElementById('reiniciar-status');
+    const testeBombasStatusEl = document.getElementById('teste-bombas-status');
+    const bombaManualStatusEl = document.getElementById('bomba-manual-status');
+
+    let arduinoOnline = {{ 'true' if arduino_conectado else 'false' }};
+
+    function atualizarBotoes() {
+        document.querySelectorAll('.btn-regar').forEach((b) => { b.disabled = !arduinoOnline; });
+        document.querySelectorAll('.btn-bomba-manual').forEach((b) => { b.disabled = !arduinoOnline; });
+        btnParar.disabled = !arduinoOnline;
+        btnReiniciar.disabled = !arduinoOnline;
+        btnTesteBombasLigar.disabled = !arduinoOnline;
+        btnTesteBombasDesligar.disabled = !arduinoOnline;
+        btnBombaManualDesligar.disabled = !arduinoOnline;
+    }
+    atualizarBotoes();
+
+    socket.on('status_arduino', (dados) => {
+        arduinoOnline = dados.conectado;
+        atualizarBotoes();
+        if (!arduinoOnline) {
+            statusEl.textContent = 'Arduino offline — controles manuais desativados.';
+        } else {
+            statusEl.textContent = '';
+        }
+    });
+
+    async function enviarComando(url, corpo, alvoStatusEl = statusEl) {
+        alvoStatusEl.textContent = 'Enviando...';
+        try {
+            const resposta = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: corpo ? JSON.stringify(corpo) : undefined,
+            });
+            const json = await resposta.json();
+            if (json.ok) {
+                alvoStatusEl.textContent = 'Comando enviado.';
+            } else {
+                alvoStatusEl.textContent = 'Erro: ' + (json.erro || 'falha desconhecida.');
+            }
+        } catch (e) {
+            alvoStatusEl.textContent = 'Erro ao enviar comando: ' + e;
+        }
+    }
+
+    document.querySelectorAll('.btn-regar').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            const vaso = parseInt(btn.dataset.vaso, 10);
+            if (confirm(`Iniciar rega manual? (${btn.textContent.trim()})`)) {
+                enviarComando('/api/comando/regar', { vaso });
+            }
+        });
+    });
+    btnParar.addEventListener('click', () => {
+        enviarComando('/api/comando/parar', null);
+    });
+    btnTesteBombasLigar.addEventListener('click', () => {
+        if (confirm('Testar as 4 bombas agora? Cada uma liga por 10s, uma de cada vez (~40s no total). Clique em "Parar teste" a qualquer momento pra interromper.')) {
+            enviarComando('/api/comando/teste_bombas', { ligar: true }, testeBombasStatusEl);
+        }
+    });
+    btnTesteBombasDesligar.addEventListener('click', () => {
+        enviarComando('/api/comando/teste_bombas', { ligar: false }, testeBombasStatusEl);
+    });
+    document.querySelectorAll('.btn-bomba-manual').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            const slot = parseInt(btn.dataset.slot, 10);
+            enviarComando('/api/comando/teste_bomba', { ligar: true, slot }, bombaManualStatusEl);
+        });
+    });
+    btnBombaManualDesligar.addEventListener('click', () => {
+        enviarComando('/api/comando/teste_bomba', { ligar: false }, bombaManualStatusEl);
+    });
+    btnReiniciar.addEventListener('click', () => {
+        if (confirm('Reiniciar o Arduino agora? Ele fica alguns segundos sem responder.')) {
+            enviarComando('/api/comando/reiniciar', null, reiniciarStatusEl);
+        }
+    });
+
+    socket.on('rega_estado', (dados) => {
+        if (dados.em_andamento) {
+            statusEl.textContent = `Vaso ${dados.vaso}: regando (${dados.motivo})...`;
+        } else {
+            statusEl.textContent = `Vaso ${dados.vaso}: rega finalizada.`;
+        }
+    });
+</script>
+{% endblock %}
